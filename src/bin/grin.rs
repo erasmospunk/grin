@@ -23,6 +23,7 @@ use crate::config::config::SERVER_CONFIG_FILE_NAME;
 use crate::core::global;
 use crate::util::init_logger;
 use clap::App;
+use failure::Error;
 use grin_api as api;
 use grin_config as config;
 use grin_core as core;
@@ -63,15 +64,31 @@ fn log_build_info() {
 	debug!("{}", detailed_info);
 }
 
-fn main() {
-	let exit_code = real_main();
-	std::process::exit(exit_code);
+fn main() -> Result<(), Error> {
+	let result = real_main();
+
+	match result {
+		Ok(_) => Ok(()),
+		Err(error) => {
+			//			println!("error {:?}", &error);
+			match error.downcast::<config::ConfigError>() {
+				Ok(conf_err) => {
+					std::process::exit(1);
+
+					//					println!("conf_err {:?}", conf_err);
+					//					Err(conf_err.into())
+				}
+				Err(error) => Err(error),
+			}
+			//			Err(error)
+		}
+	}
 }
 
-fn real_main() -> i32 {
+fn real_main() -> Result<(), Error> {
 	let yml = load_yaml!("grin.yml");
 	let args = App::from_yaml(yml).get_matches();
-	let node_config;
+	let node_config: config::GlobalConfig;
 
 	// Temporary wallet warning message
 	match args.subcommand() {
@@ -101,7 +118,7 @@ fn real_main() -> i32 {
 			// If it's just a server config command, do it and exit
 			if let ("config", Some(_)) = server_args.subcommand() {
 				cmd::config_command_server(&chain_type, SERVER_CONFIG_FILE_NAME);
-				return 0;
+				return Ok(());
 			}
 		}
 		_ => {}
@@ -112,46 +129,42 @@ fn real_main() -> i32 {
 		// When the subscommand is 'server' take into account the 'config_file' flag
 		("server", Some(server_args)) => {
 			if let Some(_path) = server_args.value_of("config_file") {
-				node_config = Some(config::GlobalConfig::new(_path).unwrap_or_else(|e| {
+				node_config = config::GlobalConfig::new(_path).unwrap_or_else(|e| {
 					panic!("Error loading server configuration: {}", e);
-				}));
+				});
 			} else {
-				node_config = Some(
-					config::initial_setup_server(&chain_type).unwrap_or_else(|e| {
-						panic!("Error loading server configuration: {}", e);
-					}),
-				);
+				node_config = config::initial_setup_server(&chain_type).unwrap_or_else(|e| {
+					panic!("Error loading server configuration: {}", e);
+				});
 			}
 		}
 		// Otherwise load up the node config as usual
 		_ => {
-			node_config = Some(
-				config::initial_setup_server(&chain_type).unwrap_or_else(|e| {
-					panic!("Error loading server configuration: {}", e);
-				}),
-			);
+			node_config = config::initial_setup_server(&chain_type)?;
+			//			node_config = config::initial_setup_server(&chain_type).unwrap_or_else(|e| {
+			//				panic!("Error loading server configuration: {}", e);
+			//			});
 		}
 	}
 
-	if let Some(mut config) = node_config.clone() {
-		let mut l = config.members.as_mut().unwrap().logging.clone().unwrap();
-		let run_tui = config.members.as_mut().unwrap().server.run_tui;
-		if let Some(true) = run_tui {
-			l.log_to_stdout = false;
-			l.tui_running = Some(true);
-		}
-		init_logger(Some(l));
+	let mut config = node_config.clone();
+	let mut l = config.members.as_mut().unwrap().logging.clone().unwrap();
+	let run_tui = config.members.as_mut().unwrap().server.run_tui;
+	if let Some(true) = run_tui {
+		l.log_to_stdout = false;
+		l.tui_running = Some(true);
+	}
+	init_logger(Some(l));
 
-		global::set_mining_mode(config.members.unwrap().server.clone().chain_type);
+	global::set_mining_mode(config.members.unwrap().server.clone().chain_type);
 
-		if let Some(file_path) = &config.config_file_path {
-			info!(
-				"Using configuration file at {}",
-				file_path.to_str().unwrap()
-			);
-		} else {
-			info!("Node configuration file not found, using default");
-		}
+	if let Some(file_path) = &config.config_file_path {
+		info!(
+			"Using configuration file at {}",
+			file_path.to_str().unwrap()
+		);
+	} else {
+		info!("Node configuration file not found, using default");
 	}
 
 	log_build_info();
@@ -159,16 +172,14 @@ fn real_main() -> i32 {
 	// Execute subcommand
 	match args.subcommand() {
 		// server commands and options
-		("server", Some(server_args)) => {
-			cmd::server_command(Some(server_args), node_config.unwrap())
-		}
+		("server", Some(server_args)) => cmd::server_command(Some(server_args), node_config),
 
 		// client commands and options
-		("client", Some(client_args)) => cmd::client_command(client_args, node_config.unwrap()),
+		("client", Some(client_args)) => cmd::client_command(client_args, node_config),
 
 		// If nothing is specified, try to just use the config file instead
 		// this could possibly become the way to configure most things
 		// with most command line options being phased out
-		_ => cmd::server_command(None, node_config.unwrap()),
+		_ => cmd::server_command(None, node_config),
 	}
 }

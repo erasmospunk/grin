@@ -13,59 +13,56 @@
 // limitations under the License.
 
 //! Public types for config modules
-
-use std::fmt;
-use std::io;
 use std::path::PathBuf;
 
 use crate::servers::ServerConfig;
 use crate::util::LoggingConfig;
 
-/// Error type wrapping config errors.
-#[derive(Debug)]
-pub enum ConfigError {
-	/// Error with parsing of config file
-	ParseError(String, String),
-
-	/// Error with fileIO while reading config file
-	FileIOError(String, String),
-
-	/// No file found
-	FileNotFoundError(String),
-
-	/// Error serializing config values
-	SerializationError(String),
-}
-
-impl fmt::Display for ConfigError {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		match *self {
-			ConfigError::ParseError(ref file_name, ref message) => write!(
-				f,
-				"Error parsing configuration file at {} - {}",
-				file_name, message
-			),
-			ConfigError::FileIOError(ref file_name, ref message) => {
-				write!(f, "{} {}", message, file_name)
-			}
-			ConfigError::FileNotFoundError(ref file_name) => {
-				write!(f, "Configuration file not found: {}", file_name)
-			}
-			ConfigError::SerializationError(ref message) => {
-				write!(f, "Error serializing configuration: {}", message)
-			}
-		}
-	}
-}
-
-impl From<io::Error> for ConfigError {
-	fn from(error: io::Error) -> ConfigError {
-		ConfigError::FileIOError(
-			String::from(""),
-			String::from(format!("Error loading config file: {}", error)),
-		)
-	}
-}
+///// Error type wrapping config errors.
+//#[derive(Debug)]
+//pub enum ConfigError {
+//	/// Error with parsing of config file
+//	ParseError(String, String),
+//
+//	/// Error with fileIO while reading config file
+//	FileIOError(String, String),
+//
+//	/// No file found
+//	FileNotFoundError(String),
+//
+//	/// Error serializing config values
+//	SerializationError(String),
+//}
+//
+//impl fmt::Display for ConfigError {
+//	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//		match *self {
+//			ConfigError::ParseError(ref file_name, ref message) => write!(
+//				f,
+//				"Error parsing configuration file at {} - {}",
+//				file_name, message
+//			),
+//			ConfigError::FileIOError(ref file_name, ref message) => {
+//				write!(f, "{} {}", message, file_name)
+//			}
+//			ConfigError::FileNotFoundError(ref file_name) => {
+//				write!(f, "Configuration file not found: {}", file_name)
+//			}
+//			ConfigError::SerializationError(ref message) => {
+//				write!(f, "Error serializing configuration: {}", message)
+//			}
+//		}
+//	}
+//}
+//
+//impl From<io::Error> for ConfigError {
+//	fn from(error: io::Error) -> ConfigError {
+//		ConfigError::FileIOError(
+//			String::from(""),
+//			String::from(format!("Error loading config file: {}", error)),
+//		)
+//	}
+//}
 
 /// Going to hold all of the various configuration types
 /// separately for now, then put them together as a single

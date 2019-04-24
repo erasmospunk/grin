@@ -10,8 +10,8 @@ workspace = ".."
 edition = "2018"
 
 [dependencies]
-failure = "0.1.1"
-failure_derive = "0.1.1"
+failure = "0.1.5"
+failure_derive = "0.1.5"
 hyper = "0.12"
 lazy_static = "1"
 regex = "1"

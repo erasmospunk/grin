@@ -28,6 +28,8 @@ use crate::p2p::{PeerAddr, Seeding};
 use crate::servers;
 use crate::tui::ui;
 
+use failure::Error;
+
 /// wrap below to allow UI to clean up on stop
 pub fn start_server(config: servers::ServerConfig) {
 	start_server_tui(config);
@@ -83,7 +85,7 @@ fn start_server_tui(config: servers::ServerConfig) {
 pub fn server_command(
 	server_args: Option<&ArgMatches<'_>>,
 	mut global_config: GlobalConfig,
-) -> i32 {
+) -> Result<(), Error> {
 	global::set_mining_mode(
 		global_config
 			.members
@@ -144,5 +146,5 @@ pub fn server_command(
 	} else {
 		start_server(server_config);
 	}
-	0
+	Ok(())
 }

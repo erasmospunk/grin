@@ -30,7 +30,9 @@ use grin_util as util;
 
 mod comments;
 pub mod config;
+mod error;
 pub mod types;
 
 pub use crate::config::initial_setup_server;
-pub use crate::types::{ConfigError, ConfigMembers, GlobalConfig};
+pub use crate::error::{ConfigError, ErrorKind};
+pub use crate::types::{ConfigMembers, GlobalConfig};

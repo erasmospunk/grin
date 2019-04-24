@@ -27,10 +27,13 @@ use toml;
 
 use crate::comments::insert_comments;
 use crate::core::global;
+use crate::error::{ConfigError, ErrorKind};
 use crate::p2p;
 use crate::servers::ServerConfig;
-use crate::types::{ConfigError, ConfigMembers, GlobalConfig};
+use crate::types::{ConfigMembers, GlobalConfig};
 use crate::util::LoggingConfig;
+
+use failure::ResultExt;
 
 /// The default file name to use when trying to derive
 /// the node config file location
@@ -206,9 +209,9 @@ impl GlobalConfig {
 		// Config file path is given but not valid
 		let config_file = return_value.config_file_path.clone().unwrap();
 		if !config_file.exists() {
-			return Err(ConfigError::FileNotFoundError(String::from(
-				config_file.to_str().unwrap(),
-			)));
+			return Err(
+				ErrorKind::FileNotFoundError(String::from(config_file.to_str().unwrap())).into(),
+			);
 		}
 
 		// Try to parse the config file if it exists, explode if it does exist but
@@ -218,7 +221,10 @@ impl GlobalConfig {
 
 	/// Read config
 	fn read_config(mut self) -> Result<GlobalConfig, ConfigError> {
-		let mut file = File::open(self.config_file_path.as_mut().unwrap())?;
+		let path = self.config_file_path.as_ref().unwrap();
+		let mut file = File::open(path).context(ErrorKind::FileIOError {
+			path: path.to_str().unwrap().to_string(),
+		})?;
 		let mut contents = String::new();
 		file.read_to_string(&mut contents)?;
 		let decoded: Result<ConfigMembers, toml::de::Error> = toml::from_str(&contents);
@@ -228,17 +234,11 @@ impl GlobalConfig {
 				return Ok(self);
 			}
 			Err(e) => {
-				return Err(ConfigError::ParseError(
-					String::from(
-						self.config_file_path
-							.as_mut()
-							.unwrap()
-							.to_str()
-							.unwrap()
-							.clone(),
-					),
+				return Err(ErrorKind::ParseError(
+					String::from(self.config_file_path.unwrap().to_str().unwrap().clone()),
 					String::from(format!("{}", e)),
-				));
+				)
+				.into());
 			}
 		}
 	}
@@ -285,10 +285,7 @@ impl GlobalConfig {
 		match encoded {
 			Ok(enc) => return Ok(enc),
 			Err(e) => {
-				return Err(ConfigError::SerializationError(String::from(format!(
-					"{}",
-					e
-				))));
+				return Err(ErrorKind::SerializationError(String::from(format!("{}", e))).into());
 			}
 		}
 	}
